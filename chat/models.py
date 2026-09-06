@@ -38,14 +38,25 @@ class Message(models.Model):
     class Role(models.TextChoices):
         USER = "user", "User"
         ASSISTANT = "assistant", "Assistant"
+        
+    class Feedback(models.TextChoices):
+        UP = "up", "Thumbs up"
+        DOWN = "down", "Thumbs down"
+
 
     conversation = models.ForeignKey(
         Conversation, related_name="messages", on_delete=models.CASCADE
     )
     role = models.CharField(max_length=16, choices=Role.choices)
     content = models.TextField()
+    feedback = models.CharField(
+        max_length=4,
+        choices=Feedback.choices,
+        null=True,
+        blank=True,
+        help_text="Customer's thumbs up/down on this reply, if given.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
         ordering = ["created_at"]
 
