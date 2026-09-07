@@ -25,6 +25,8 @@ from .serializers import (
     ChatRequestSerializer,
     ChatResponseSerializer,
     ConversationSerializer,
+    MessageFeedbackSerializer,
+    MessageSerializer,
 )
 
 
@@ -79,20 +81,25 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
         conversation.save()  # bumps updated_at
 
         response = ChatResponseSerializer(
-            {"conversation_id": conversation.id, "message_id": assistant_message.id, "reply": reply_text}
+            {
+                "conversation_id": conversation.id,
+                "message_id": assistant_message.id,
+                "reply": reply_text,
+            }
         )
         return Response(response.data, status=status.HTTP_200_OK)
-    
+
+
 class MessageFeedbackView(APIView):
     """
     PATCH /api/messages/<id>/feedback/
- 
+
     Lets a customer rate a specific bot reply. Body: {"feedback": "up"},
     {"feedback": "down"}, or {"feedback": null} to clear it. Only works on
     assistant messages - rating your own message doesn't make sense, so a
     user-role message id returns 404 rather than silently accepting it.
     """
- 
+
     @extend_schema(
         request=MessageFeedbackSerializer,
         responses={200: MessageSerializer},
