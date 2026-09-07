@@ -19,7 +19,7 @@ from .models import Conversation, Message
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
-        fields = ["id", "role", "content", "created_at"]
+        fields = ["id", "role", "content", "feedback", "created_at"]
         read_only_fields = fields
 
 
@@ -49,4 +49,14 @@ class ChatResponseSerializer(serializers.Serializer):
     conversation_id = serializers.UUIDField(
         help_text="Pass this back as conversation_id on the next message to continue this conversation."
     )
+    message_id = serializers.IntegerField(
+        help_text="ID of the bot's reply message - pass this to the feedback endpoint to rate this specific reply."
+    )
     reply = serializers.CharField(help_text="The bot's reply.")
+    
+class MessageFeedbackSerializer(serializers.Serializer):
+    feedback = serializers.ChoiceField(
+        choices=Message.Feedback.choices,
+        allow_null=True,
+        help_text="Set to 'up' or 'down' to rate a reply, or null to clear existing feedback.",
+    )
