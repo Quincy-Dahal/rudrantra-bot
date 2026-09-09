@@ -107,7 +107,7 @@ All read from `.env` via `django-environ`. See `.env example` for a template wit
 | `ALLOWED_HOSTS` | Comma-separated hosts Django will serve | `127.0.0.1,localhost` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@localhost:5432/dbname` |
 | `OLLAMA_BASE_URL` | Where Ollama is running | `http://127.0.0.1:11434` |
-| `OLLAMA_MODEL` | Which model to use | `qwen3:4b` |
+| `OLLAMA_MODEL` | Which model to use | `qwen3:1.7b` |
 | `OLLAMA_TIMEOUT` | Max seconds to wait for a reply | `300` |
 | `OLLAMA_KEEP_ALIVE` | How long Ollama keeps the model loaded in RAM | `10m` |
 | `OLLAMA_NUM_THREAD` | CPU threads for Ollama to use (match physical cores, not logical) | `4` |
@@ -151,7 +151,7 @@ Go to `/admin/`, log in, and open **Products**. Add, edit, or uncheck "Is active
 ## Known Limitations
 
 - **Response time:** 2-5 minutes on CPU-only hardware with no dedicated GPU. This is a hardware constraint, not a bug — moving to real server hosting (with more CPU headroom, or a GPU) is the actual fix.
-- **Occasional "thinking" leakage:** `qwen3:4b` has a known Ollama bug where its internal reasoning can leak into visible replies instead of staying hidden. Mitigated via `core/llm.py`'s `_strip_thinking()` and a generous token cap, but not fully eliminated for every possible question.
+- **Occasional "thinking" leakage:** `qwen3:1.7b` has a known Ollama bug where its internal reasoning can leak into visible replies instead of staying hidden. Mitigated via `core/llm.py`'s `_strip_thinking()` and a generous token cap, but not fully eliminated for every possible question.
 - **Shipping and return policy content** isn't available yet (doesn't exist on the live site either). The bot is instructed to redirect these questions to the team rather than guess.
 
 ---
