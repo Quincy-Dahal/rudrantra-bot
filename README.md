@@ -1,4 +1,4 @@
-# Rudrantra Chatbot Backend — "Gyaan"
+# Rudrantra Chatbot Backend - "Gyaan"
 
 Django REST API backend for **Gyaan**, the AI customer support chatbot for [Rudrantra](https://rudranntra.com), an online store selling Rudraksha beads. Gyaan answers customer questions about products, prices, meanings, and store policies using **Qwen3**, an open-source AI model running locally via **Ollama** — no per-message API costs.
 
@@ -146,15 +146,6 @@ Full interactive docs at `/api/docs/`. Key endpoints:
 
 Go to `/admin/`, log in, and open **Products**. Add, edit, or uncheck "Is active" to hide a product — changes are live immediately, no restart needed. Each product can have multiple **Variants** (different sizes/prices).
 
----
-
-## Known Limitations
-
-- **Response time:** 2-5 minutes on CPU-only hardware with no dedicated GPU. This is a hardware constraint, not a bug — moving to real server hosting (with more CPU headroom, or a GPU) is the actual fix.
-- **Occasional "thinking" leakage:** `qwen3:1.7b` has a known Ollama bug where its internal reasoning can leak into visible replies instead of staying hidden. Mitigated via `core/llm.py`'s `_strip_thinking()` and a generous token cap, but not fully eliminated for every possible question.
-- **Shipping and return policy content** isn't available yet (doesn't exist on the live site either). The bot is instructed to redirect these questions to the team rather than guess.
-
----
 
 ## Git Workflow
 
@@ -162,7 +153,7 @@ All work happens on a feature branch, then goes through a Pull Request for revie
    ```
    Confirm it landed: `ollama list`
 
-4. **Set up PostgreSQL** — create a database for this project (matches whatever you put in `DATABASE_URL` below).
+4. **Set up PostgreSQL** — create a database for this project.
 
 5. **Create your `.env` file** — copy `.env example` to `.env` and fill in real values (see [Environment Variables](#environment-variables) below). **Never commit `.env`** — it's already in `.gitignore`.
 
