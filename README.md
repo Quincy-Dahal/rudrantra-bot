@@ -219,37 +219,3 @@ products/   - The product catalog (database-backed, editable via Django admin)
 myproject/  - Django settings, root URL config
 ```
 
-**Why products are in the database, not hardcoded:** adding, editing, or hiding a product happens through `/admin/` and takes effect on the very next chat message — no code change or redeploy needed.
-
----
-
-## API Endpoints
-
-Full interactive docs at `/api/docs/`. Key endpoints:
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/api/conversations/send-message/` | Send a message, get a reply. Include `conversation_id` from a prior response to continue that conversation. |
-| `GET` | `/api/conversations/` | List all conversations |
-| `GET` | `/api/conversations/<id>/` | Get one conversation with its full message history |
-| `PATCH` | `/api/messages/<id>/feedback/` | Rate a specific bot reply: `{"feedback": "up"}`, `{"feedback": "down"}`, or `{"feedback": null}` to clear |
-
----
-
-## Managing the Product Catalog
-
-Go to `/admin/`, log in, and open **Products**. Add, edit, or uncheck "Is active" to hide a product — changes are live immediately, no restart needed. Each product can have multiple **Variants** (different sizes/prices).
-
----
-
-## Known Limitations
-
-- **Response time:** 2-5 minutes on CPU-only hardware with no dedicated GPU. This is a hardware constraint, not a bug — moving to real server hosting (with more CPU headroom, or a GPU) is the actual fix.
-- **Occasional "thinking" leakage:** `qwen3:4b` has a known Ollama bug where its internal reasoning can leak into visible replies instead of staying hidden. Mitigated via `core/llm.py`'s `_strip_thinking()` and a generous token cap, but not fully eliminated for every possible question.
-- **Shipping and return policy content** isn't available yet (doesn't exist on the live site either). The bot is instructed to redirect these questions to the team rather than guess.
-
----
-
-## Git Workflow
-
-All work happens on a feature branch, then goes through a Pull Request for review. Nothing is pushed directly to `main`.
