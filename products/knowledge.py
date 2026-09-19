@@ -8,9 +8,9 @@ from .models import Product
 def build_product_catalog_text():
     """
     Returns a formatted text block listing every active product, grouped by
-    category order, with price ranges and meanings - the same shape the
-    chatbot's system prompt has always expected, just generated fresh from
-    the database each call instead of hardcoded.
+    category order, with price ranges, meanings, and a coarse stock note -
+    the same shape the chatbot's system prompt has always expected, just
+    generated fresh from the database each call instead of hardcoded.
     """
     lines = [
         "RUDRANTRA PRODUCT CATALOG",
@@ -23,6 +23,16 @@ def build_product_catalog_text():
         "for precise sizing, say plainly that exact measurements aren't "
         "listed rather than guessing a number or inventing an explanation, "
         "and offer to connect the customer with the team.",
+        "",
+        "Stock status shown per product (In stock / Low stock / Out of "
+        "stock) is a snapshot from the last sync, not real-time - it can "
+        "lag behind actual changes by hours. Treat \"Out of stock\" and "
+        "\"Low stock\" as reasonably trustworthy signals worth passing "
+        "along, but don't guarantee availability or exact quantities for a "
+        "size marked in-stock; for a time-sensitive or large order, suggest "
+        "confirming on the product page or via WhatsApp before the customer "
+        "commits. If no stock note appears for a product, treat it as "
+        "normally available.",
         "",
     ]
 
@@ -37,10 +47,13 @@ def build_product_catalog_text():
 
     for product in products:
         price = product.price_range_display()
+        stock_note = product.stock_status_note()
+        stock_suffix = f" [{stock_note}]" if stock_note else ""
+
         if product.meaning:
-            lines.append(f"{product.name} - {product.meaning} {price}.")
+            lines.append(f"{product.name} - {product.meaning} {price}{stock_suffix}.")
         else:
-            lines.append(f"{product.name} - {price}.")
+            lines.append(f"{product.name} - {price}{stock_suffix}.")
             undocumented.append(product.name)
 
     if undocumented:
@@ -53,12 +66,5 @@ def build_product_catalog_text():
           "the customer you're avoiding inventing it either, just skip "
           "straight to recommending a free consultation."
       )
-
-    lines.append("")
-    lines.append(
-        "Stock levels change frequently and are not tracked here - if asked "
-        "whether something is in stock, say you can't confirm live stock "
-        "and point the customer to the product page or WhatsApp."
-    )
 
     return "\n".join(lines)
