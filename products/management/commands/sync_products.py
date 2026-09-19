@@ -1,16 +1,44 @@
 """
 products/management/commands/sync_products.py
 
+Pulls the live product catalog from the Rudrantra Next.js site's
+/api/gyaan-products sync endpoint and upserts it into this project's
+simplified ProductCategory / Product / ProductVariant schema.
+Requires in settings.py / .env:
+    GYAAN_SYNC_URL=https://<live-site-domain>/api/gyaan-products
+    GYAAN_SYNC_API_KEY=<same shared secret the Next.js route checks>
+
+Usage:
+    python manage.py sync_products
+    python manage.py sync_products --dry-run
 """
+
+import re
 
 import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils.html import strip_tags
 
 from products.models import Product, ProductCategory, ProductVariant
 
 PAGE_SIZE_LOG_EVERY = 1  # log each page as it comes in; catalog is small
+
+
+def _clean_html_text(html):
+    """
+    Turns simple CMS-authored HTML (headings, paragraphs, list items) into
+    plain text suitable for the chatbot's system prompt.
+    """
+    if not html:
+        return ""
+    text = re.sub(r"</(li|p|h[1-6]|div)\s*>", ". ", html, flags=re.IGNORECASE)
+    text = re.sub(r"<br\s*/?>", ". ", text, flags=re.IGNORECASE)
+    text = strip_tags(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"\s*\.\s*(\.\s*)+", ". ", text)  # collapse repeated ". . "
+    return text.strip(" .") + ("." if text.strip(" .") else "")
 
 
 class Command(BaseCommand):
@@ -63,17 +91,14 @@ class Command(BaseCommand):
                 category_name = categories[0]["name"] if categories else "Uncategorized"
                 category, _ = ProductCategory.objects.get_or_create(name=category_name)
 
-                fallback_meaning = (
+                fallback_meaning = _clean_html_text(
                     item.get("benefits")
-                    or item.get("shortDescription")
-                    or ""
-                ).strip()
+                ) or (item.get("shortDescription") or "").strip()
                 is_active = bool(item.get("isPublished")) and not item.get("deletedAt")
 
                 
                 product = Product.objects.filter(live_site_id=live_id).first()
 
-                
                 if product is None:
                     product = Product.objects.filter(
                         live_site_id__isnull=True, name__iexact=name
@@ -104,7 +129,6 @@ class Command(BaseCommand):
                     item.get("lowStockThreshold") or 5,
                 )
 
-            
             hidden_count = (
                 Product.objects.filter(is_active=True, live_site_id__isnull=False)
                 .exclude(live_site_id__in=synced_ids)
@@ -154,16 +178,32 @@ class Command(BaseCommand):
                 product=product,
                 label=label,
                 defaults={
-                    "price": size.get("price"),
+                    "price": self._clean_price(size.get("price")),
                     "stock_status": self._stock_status(
                         size.get("stock"), low_stock_threshold
                     ),
                 },
             )
 
-       
         if live_labels:
             product.variants.exclude(label__in=live_labels).delete()
+
+    @staticmethod
+    def _clean_price(price):
+        """
+        The live site appears to use 0 as a placeholder for "not priced
+        yet" (seen on products with no real price set), not a literal
+        free item - so 0 (and anything invalid/missing) maps to None,
+        which price_range_display() already renders as "Contact for
+        price" rather than "$0".
+        """
+        if price is None:
+            return None
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            return None
+        return price if price > 0 else None
 
     @staticmethod
     def _stock_status(stock, low_stock_threshold):
