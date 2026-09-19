@@ -57,6 +57,10 @@ OLLAMA_KEEP_ALIVE = env('OLLAMA_KEEP_ALIVE', default='10m')
 OLLAMA_NUM_THREAD = env.int('OLLAMA_NUM_THREAD', default=4)
 OLLAMA_TEMPERATURE = env.float('OLLAMA_TEMPERATURE', default=0.3)
 
+# --- Gyaan product sync ---
+GYAAN_SYNC_URL = env('GYAAN_SYNC_URL', default='')
+GYAAN_SYNC_API_KEY = env('GYAAN_SYNC_API_KEY', default='')
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
