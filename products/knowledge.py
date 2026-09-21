@@ -2,10 +2,27 @@
 products/knowledge.py
 """
 
+from django.core.cache import cache
+
 from .models import Product
+
+# Cached indefinitely rather than on a TTL - the catalog only
+# actually changes when sync_products runs, so time-based expiry would
+# either serve stale data between syncs or rebuild needlessly often. The
+# sync command explicitly deletes this key when it finishes, which is the
+# only thing that should ever invalidate it.
+CATALOG_CACHE_KEY = "product_catalog_text"
 
 
 def build_product_catalog_text():
+    """
+    Returns the cached catalog text, building and caching it on a miss.
+    See _build_product_catalog_text() for the actual content.
+    """
+    return cache.get_or_set(CATALOG_CACHE_KEY, _build_product_catalog_text, timeout=None)
+
+
+def _build_product_catalog_text():
     """
     Returns a formatted text block listing every active product, grouped by
     category order, with price ranges, meanings, and a coarse stock note -

@@ -4,6 +4,7 @@ products/management/commands/sync_products.py
 Pulls the live product catalog from the Rudrantra Next.js site's
 /api/gyaan-products sync endpoint and upserts it into this project's
 simplified ProductCategory / Product / ProductVariant schema.
+
 Requires in settings.py / .env:
     GYAAN_SYNC_URL=https://<live-site-domain>/api/gyaan-products
     GYAAN_SYNC_API_KEY=<same shared secret the Next.js route checks>
@@ -17,20 +18,19 @@ import re
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.html import strip_tags
 
+from products.knowledge import CATALOG_CACHE_KEY
 from products.models import Product, ProductCategory, ProductVariant
 
 PAGE_SIZE_LOG_EVERY = 1  # log each page as it comes in; catalog is small
 
 
 def _clean_html_text(html):
-    """
-    Turns simple CMS-authored HTML (headings, paragraphs, list items) into
-    plain text suitable for the chatbot's system prompt.
-    """
+    
     if not html:
         return ""
     text = re.sub(r"</(li|p|h[1-6]|div)\s*>", ". ", html, flags=re.IGNORECASE)
@@ -96,9 +96,9 @@ class Command(BaseCommand):
                 ) or (item.get("shortDescription") or "").strip()
                 is_active = bool(item.get("isPublished")) and not item.get("deletedAt")
 
-                
                 product = Product.objects.filter(live_site_id=live_id).first()
 
+            
                 if product is None:
                     product = Product.objects.filter(
                         live_site_id__isnull=True, name__iexact=name
@@ -129,18 +129,24 @@ class Command(BaseCommand):
                     item.get("lowStockThreshold") or 5,
                 )
 
+            # Only hide products already linked to the live site (has a
+            # live_site_id) that weren't in this sync - never touch rows
+            # with no live_site_id at all, since those were never matched
+            # to anything on the live site in the first place.
             hidden_count = (
                 Product.objects.filter(is_active=True, live_site_id__isnull=False)
                 .exclude(live_site_id__in=synced_ids)
                 .update(is_active=False)
             )
 
+        cache.delete(CATALOG_CACHE_KEY)
+
         self.stdout.write(self.style.SUCCESS(
             f"Sync complete: {created_count} created, {updated_count} updated, "
             f"{hidden_count} hidden (no longer on live site)."
         ))
-        self.stdout.write(self.style.WARNING(
-            "Note: catalog cache (once added) still needs invalidating after this run."
+        self.stdout.write(self.style.SUCCESS(
+            "Catalog cache invalidated - next chat request will rebuild it."
         ))
 
     def _fetch_all(self, sync_url, sync_key):
@@ -185,6 +191,10 @@ class Command(BaseCommand):
                 },
             )
 
+        # If the live site has no sizes at all for a product, leave any
+        # existing manually-entered variant alone rather than deleting it -
+        # an empty `sizes` list more likely means "not modeled with sizes
+        # on the live site" than "no purchasable options exist".
         if live_labels:
             product.variants.exclude(label__in=live_labels).delete()
 
