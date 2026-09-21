@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 
 from core.llm import LLMError
 from core.llm import chat as llm_chat
+from core.qa_cache import get_cached_reply, store_reply
 
 from .models import Conversation, Message
 from .serializers import (
@@ -67,13 +68,26 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
             for m in conversation.messages.all()
         ]
 
-        try:
-            reply_text = llm_chat(history)
-        except LLMError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+        # Only the first message of a conversation is cache-eligible - a
+        # follow-up depends on prior turns, so caching it in isolation
+        # would risk an answer that's right for a different conversation
+        # entirely. len(history) == 1 means only the message just saved
+        # above exists yet.
+        is_first_message = len(history) == 1
+        cached_reply = get_cached_reply(user_text) if is_first_message else None
+
+        if cached_reply is not None:
+            reply_text = cached_reply
+        else:
+            try:
+                reply_text = llm_chat(history)
+            except LLMError as exc:
+                return Response(
+                    {"detail": str(exc)},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            if is_first_message:
+                store_reply(user_text, reply_text)
 
         assistant_message = Message.objects.create(
             conversation=conversation, role=Message.Role.ASSISTANT, content=reply_text
