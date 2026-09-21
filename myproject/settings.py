@@ -61,6 +61,17 @@ OLLAMA_TEMPERATURE = env.float('OLLAMA_TEMPERATURE', default=0.3)
 GYAAN_SYNC_URL = env('GYAAN_SYNC_URL', default='')
 GYAAN_SYNC_API_KEY = env('GYAAN_SYNC_API_KEY', default='')
 
+# --- Cache (Redis) ---
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
