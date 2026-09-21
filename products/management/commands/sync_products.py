@@ -23,6 +23,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.html import strip_tags
 
+from core.qa_cache import clear_all as clear_qa_cache
 from products.knowledge import CATALOG_CACHE_KEY
 from products.models import Product, ProductCategory, ProductVariant
 
@@ -30,7 +31,7 @@ PAGE_SIZE_LOG_EVERY = 1  # log each page as it comes in; catalog is small
 
 
 def _clean_html_text(html):
-    
+
     if not html:
         return ""
     text = re.sub(r"</(li|p|h[1-6]|div)\s*>", ". ", html, flags=re.IGNORECASE)
@@ -96,9 +97,12 @@ class Command(BaseCommand):
                 ) or (item.get("shortDescription") or "").strip()
                 is_active = bool(item.get("isPublished")) and not item.get("deletedAt")
 
+                # 1) Try matching an already-linked row.
                 product = Product.objects.filter(live_site_id=live_id).first()
 
-            
+                # 2) First-run bridge: fall back to name, for rows synced
+                #    before live_site_id existed.
+                #    Backfill the id so future syncs skip this fallback.
                 if product is None:
                     product = Product.objects.filter(
                         live_site_id__isnull=True, name__iexact=name
@@ -140,6 +144,7 @@ class Command(BaseCommand):
             )
 
         cache.delete(CATALOG_CACHE_KEY)
+        clear_qa_cache()
 
         self.stdout.write(self.style.SUCCESS(
             f"Sync complete: {created_count} created, {updated_count} updated, "
